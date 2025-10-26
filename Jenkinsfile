@@ -16,8 +16,8 @@ pipeline {
         stage('Build Java Code') {
             steps {
                 echo 'Compiling and packaging the Java application with Maven...'
-                // Executes the Maven clean and package command to create the JAR file
-                sh 'mvn clean package' 
+                // 🛠️ FIX 1: Use 'bat' instead of 'sh' for native Windows execution
+                bat 'mvn clean package' 
             }
         }
 
@@ -25,10 +25,9 @@ pipeline {
             steps {
                 echo "Building Docker image: ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
                 
-                // 🛠️ FIX for Windows EOF/BuildKit Error: 
-                // We use 'bat' instead of 'docker.build' and add the '--traditional' flag.
-                // This ensures Jenkins uses the standard Windows command line.
-                bat "docker build --traditional -t \"${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}\" ."
+                // 🛠️ FIX 2: Removed the problematic '--traditional' flag.
+                // This uses the standard Windows 'bat' command to run Docker build.
+                bat "docker build -t \"${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}\" ."
             }
         }
 
@@ -37,8 +36,7 @@ pipeline {
                 script {
                     echo "Authenticating and pushing image to Docker Hub..."
                     
-                    // We must revert to the 'docker' Groovy command for authentication and push
-                    // as it safely handles credentials using the Jenkins secret.
+                    // The 'docker.withRegistry' Groovy wrapper must be kept for secure credential handling.
                     docker.withRegistry(env.DOCKER_REGISTRY_URL, env.DOCKER_CREDENTIALS_ID) {
                         def img = docker.image("${env.DOCKER_IMAGE}")
                         
