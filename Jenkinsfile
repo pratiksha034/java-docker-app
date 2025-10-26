@@ -23,11 +23,12 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo "Building Docker image: ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-                    // Build the image using the Dockerfile in the current directory ('.')
-                    docker.build("${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}", '.')
-                }
+                echo "Building Docker image: ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                
+                // 🛠️ FIX for Windows EOF/BuildKit Error: 
+                // We use 'bat' instead of 'docker.build' and add the '--traditional' flag.
+                // This ensures Jenkins uses the standard Windows command line.
+                bat "docker build --traditional -t \"${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}\" ."
             }
         }
 
@@ -35,7 +36,9 @@ pipeline {
             steps {
                 script {
                     echo "Authenticating and pushing image to Docker Hub..."
-                    // Use withRegistry for authenticated push using the stored Jenkins credential ID
+                    
+                    // We must revert to the 'docker' Groovy command for authentication and push
+                    // as it safely handles credentials using the Jenkins secret.
                     docker.withRegistry(env.DOCKER_REGISTRY_URL, env.DOCKER_CREDENTIALS_ID) {
                         def img = docker.image("${env.DOCKER_IMAGE}")
                         
