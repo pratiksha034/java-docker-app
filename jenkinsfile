@@ -1,51 +1,59 @@
 pipeline {
     agent any
-
+    
+    // Define environment variables for Docker Hub authentication and image naming
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred')   // Jenkins Credentials ID
-        IMAGE_NAME = "yourdockerhubusername/java-docker-app"
+        // REPLACE 'pratikshapawar' and 'java-docker-app' with your details
+        DOCKER_IMAGE = "pratikshapawar/java-docker-app" 
+        
+        // This MUST match the ID of the credential set up in Jenkins
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials-id" 
+        
+        DOCKER_REGISTRY_URL = "https://registry.hub.docker.com"
     }
 
     stages {
-
-        stage('Checkout') {
+        stage('Build Java Code') {
             steps {
-                git 'https://github.com/yourusername/java-docker-app.git'
-            }
-        }
-
-        stage('Build Jar') {
-            steps {
-                sh 'mvn clean package'
+                echo 'Compiling and packaging the Java application with Maven...'
+                // Executes the Maven clean and package command to create the JAR file
+                sh 'mvn clean package' 
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${IMAGE_NAME}:${BUILD_NUMBER}")
+                    echo "Building Docker image: ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                    // Build the image using the Dockerfile in the current directory ('.')
+                    docker.build("${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}", '.')
                 }
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Push Docker Image') {
             steps {
                 script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'dockerhub-cred') {
-                        dockerImage.push()
-                        dockerImage.push('latest')
+                    echo "Authenticating and pushing image to Docker Hub..."
+                    // Use withRegistry for authenticated push using the stored Jenkins credential ID
+                    docker.withRegistry(env.DOCKER_REGISTRY_URL, env.DOCKER_CREDENTIALS_ID) {
+                        def img = docker.image("${env.DOCKER_IMAGE}")
+                        
+                        // Push with the unique Jenkins build number tag
+                        img.push("${env.BUILD_NUMBER}")
+                        
+                        // Also push with the 'latest' tag
+                        img.push('latest')
                     }
                 }
             }
         }
     }
-
+    
     post {
-        success {
-            echo "Docker image pushed successfully!"
-        }
-        failure {
-            echo "Build failed!"
+        always {
+            // Cleans up the workspace after the build is done (optional, but good practice)
+            deleteDir() 
         }
     }
 }
