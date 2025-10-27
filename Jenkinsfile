@@ -1,51 +1,36 @@
 pipeline {
     agent any
-    
-    // Define environment variables for Docker Hub authentication and image naming
+
     environment {
-        // 🛠️ FINAL FIX: Disable BuildKit to resolve EOF error on Windows
-        DOCKER_BUILDKIT = '0' 
-        
-        // Your existing variables:
-        DOCKER_IMAGE = "pratikshapawar/java-docker-app" 
-        DOCKER_CREDENTIALS_ID = "docker-hub-credentials-id" 
-        DOCKER_REGISTRY_URL = "https://registry.hub.docker.com"
+        DOCKERHUB_CREDENTIALS = 'docker-hub-credentials-id'  // Your Jenkins DockerHub credentials ID
+        IMAGE_NAME = 'pratikshapawar/ise3'    // Docker Hub repo name
     }
 
     stages {
-        stage('Build Java Code') {
+        stage('Checkout Code') {
             steps {
-                echo 'Compiling and packaging the Java application with Maven...'
-                bat 'mvn clean package' // Already correctly set to 'bat'
+                git branch: 'main', url: 'https://github.com/pratiksha034/java-docker-app'
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                echo "Building Docker image: ${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-                
-                // This command is now correct and will respect DOCKER_BUILDKIT=0
-                bat "docker build -t \"${env.DOCKER_IMAGE}:${env.BUILD_NUMBER}\" ."
-            }
-        }
-        // ... (Push Docker Image stage remains the same)
-        stage('Push Docker Image') {
+        stage('Build and Push Docker Image') {
             steps {
                 script {
-                    echo "Authenticating and pushing image to Docker Hub..."
-                    docker.withRegistry(env.DOCKER_REGISTRY_URL, env.DOCKER_CREDENTIALS_ID) {
-                        def img = docker.image("${env.DOCKER_IMAGE}")
-                        img.push("${env.BUILD_NUMBER}")
-                        img.push('latest')
+                    docker.withRegistry('https://index.docker.io/v1/', "${DOCKERHUB_CREDENTIALS}") {
+                        def app = docker.build("${IMAGE_NAME}:latest")
+                        app.push()
                     }
                 }
             }
         }
     }
-    
+
     post {
-        always {
-            deleteDir() 
+        success {
+            echo '✅ Docker image built and pushed successfully!'
+        }
+        failure {
+            echo '❌ Build failed. Check logs.'
         }
     }
 }
