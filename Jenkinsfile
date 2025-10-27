@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = 'docker-hub-credentials-id'  // Your Jenkins DockerHub credentials ID
+        DOCKERHUB_CREDENTIALS = 'dockerhub'  // Your Jenkins DockerHub credentials ID
         IMAGE_NAME = 'pratikshapawar/ise3'    // Docker Hub repo name
     }
 
